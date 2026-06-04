@@ -9,6 +9,9 @@ This code makes use of a Waveshare RP2040 Zero board, an ICS43434 i2s mic, and a
 - Micro SD Card Breakout (3.3V): https://www.amazon.com/WWZMDiB-Module-Adapter-Memory-Shield/dp/B0BV8ZQ81F
 - 6mm Momentary NO Tactile Button (optional): https://www.amazon.com/Momentary-Tactile-Through-Breadboard-Friendly/dp/B07WF76VHT
 
+### Operation
+Simply plug in USB power, and the system will start to record. You will first see a blue LED to indicate boot configuration of the devices, then a pulsating red LED to indicate recording and clipping limiter. Unplug USB to stop the recording.
+
 ### Recording Format:
 Similar to how a dashcam/bodycam works, this code records audio to *.raw files in a way that prevents data corruption when power is suddenly lost during recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
 
