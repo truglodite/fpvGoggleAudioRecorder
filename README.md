@@ -12,27 +12,27 @@ This code makes use of a Waveshare RP2040 Zero board, an ICS43434 i2s mic, and a
 ### Recording Format:
 Similar to how a dashcam/bodycam works, this code records audio to *.raw files in a way that prevents data corruption when power is suddenly lost during recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
 
-The code makes use of an RMS audio compressor with smooth clipping that has been somewhat optimized for the hardware. Voices and noises farther away will have a similar volume to the voice of the person wearing the mic. Due to "aggressive AGC parameters", there will be some noise underlying the audio, but it is minimal. The audio performance with this approach, using the ICS43434 mic, is far cleaner sounding than the usual MAX9815 setup.
+The code makes use of an RMS audio compressor with smooth clipping that has been somewhat optimized for the hardware and intended application. Voices and noises farther away will have a similar volume to the voice of the person wearing the mic. Due to "aggressive AGC parameters", there will be some noise underlying the audio, but it is minimal. The audio performance with the ICS43434 using approach results much higher quality audio compared to the usual MAX9815+ADC setup.
 
 To create wav files from raw files, you can use Audacity to "Import/Raw Data", and choose "little endian", "Sample Rate: 22050".
 
 ### Wiring:
 Connect the hardware as shown in the table below. The button is optional for manual recording variants, and is not required for autorecording.
 
-Device | Pin | RP2040 Pin
+Device  |   Pin |   RP2040 Pin
 -------------------------
-MIC | SEL | GND
-MIC | LRCL | 11
-MIC | DOUT | 12
-MIC | BCLK | 10
-MIC | GND | GND
-MIC | 3V | 3v3
-SD | GND | GND
-SD | MISO | 4
-SD | CLK | 2
-SD | MOSI | 3
-SD | CS | 5
-BUTT | to GND | 6
+MIC |   SEL |   GND
+MIC |   LRCL |   11
+MIC |   DOUT |   12
+MIC |   BCLK |   10
+MIC |   GND |   GND
+MIC |   3V |   3v3
+SD |   GND |   GND
+SD |   MISO |   4
+SD |   CLK |   2
+SD |   MOSI |   3
+SD |   CS |   5
+BUTT |   to GND |   6
 
 ### Printable Enclosure:
 Files for a printable enclosure are provided in this repo. One of each part should be printed. ABS or PETG is recommended for the top, bottom, and shim. Clear PETG filament should be used for the lens.
