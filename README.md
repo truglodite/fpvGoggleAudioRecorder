@@ -20,7 +20,7 @@ To create wav files from raw files, you can use Audacity to "Import/Raw Data", a
 Connect the hardware as shown in the table below. The button is optional for manual recording variants, and is not required for autorecording.
 
 Device  |   Pin |   RP2040 Pin
-========================
+----|-----|----
 MIC |   SEL |   GND
 MIC |   LRCL |   11
 MIC |   DOUT |   12
