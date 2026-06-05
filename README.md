@@ -1,6 +1,6 @@
 # fpvGoggleAudioRecorder
 ## A reliable audio recording device for FPV goggles
-This code makes use of a Waveshare RP2040 Zero board, an ICS43434 i2s mic, and a 3v3 micro SD card reader to record ambient noises and voices for FPV flying sessions.
+This code makes use of a Waveshare RP2040 Zero board, an ICS43434 i2s mic, and a 3v3 micro SD card reader to record ambient noises and voices for FPV flying sessions. The Earle Philhower RP2040 Pico library is required to compile. https://github.com/earlephilhower/arduino-pico
 
 ### Hardware:
 *No pins installed if using the printable enclosure*
