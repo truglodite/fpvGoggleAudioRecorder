@@ -12,7 +12,7 @@ This code makes use of a Waveshare RP2040 Zero board, an ICS43434 i2s mic, and a
 - Micro SD Card Breakout (3.3V): https://www.amazon.com/WWZMDiB-Module-Adapter-Memory-Shield/dp/B0BV8ZQ81F
 - 6mm Momentary NO Tactile Button (optional): https://www.amazon.com/Momentary-Tactile-Through-Breadboard-Friendly/dp/B07WF76VHT
 
-* Note that an INMP441 mic could be used in place of the ICS43434 if needed, but audio quality is not quite as good.
+* Note that an INMP441 mic could be used in place of the ICS43434 if needed, but audio quality is not quite as good. Also the printed enclosure only fits the ICS mic.
 
 ### Operation
 Simply plug in USB power, and the system will start to record. You will first see a blue LED to indicate boot configuration of the devices, then a pulsating red LED to indicate recording and clipping limiter. Unplug USB to stop the recording.
