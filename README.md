@@ -42,7 +42,7 @@ SD |   CLK |   2
 SD |   MOSI |   3
 SD |   CS |   5
 SD |    3v3 |   3v3
-BUTT |   to GND |   6
+BUTT |   A/B |   6/GND
 
 <img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/enclosure/IMG_2936_1.jpg" width="600">
 
