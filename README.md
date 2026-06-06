@@ -22,6 +22,9 @@ The code makes use of an RMS audio compressor with smooth clipping that has been
 
 To create wav files from raw files, you can use Audacity to "Import/Raw Data", and choose "little endian", "Sample Rate: 22050".
 
+### Compiling/Flashing:
+The code comes ready to compile with VSCode using the PlatformIO extension. To flash your RP2040, hold the boot button then push the reset button to put the board into DFU mode. Hit the right arrow button at the bottom, and PlatformIO should load a UF2 file on the board. This code can also be compiled with Arduino IDE by adding the earlephilhower core (see the github link at the top of the readme).
+
 ### Wiring:
 Connect the hardware as shown in the table below. The button is optional for manual recording variants, and is not required for autorecording.
 
