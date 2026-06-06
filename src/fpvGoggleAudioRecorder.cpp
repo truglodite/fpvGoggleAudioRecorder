@@ -22,7 +22,7 @@
     Audio:
     - RAW PCM
     - Signed 16-bit little endian
-    - 22050 Hz mono
+    - 44100 Hz mono
 
     Requires:
     - Arduino-Pico (Earle Philhower)
@@ -44,13 +44,13 @@
 // CONFIG
 // ======================================================
 
-#define SAMPLE_RATE            22050
+#define SAMPLE_RATE            44100
 
 #define BLOCK_SAMPLES          256
 #define QUEUE_BLOCKS           128
 
 #define SEGMENT_MS             120000UL
-#define FLUSH_INTERVAL_MS      3000UL
+#define FLUSH_INTERVAL_MS      1000UL
 
 #define SD_CS                  5
 #define LED_PIN                16

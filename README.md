@@ -22,7 +22,7 @@ Similar to how a dashcam/bodycam works, this code records audio to *.raw files i
 
 The code makes use of an RMS audio compressor with smooth clipping that has been somewhat optimized for the hardware and intended application. Voices and noises farther away will have a similar volume to the voice of the person wearing the mic. Due to "aggressive AGC parameters", there will be some noise underlying the audio, but it is minimal. The audio performance with the ICS43434 using approach results much higher quality audio compared to the usual MAX9815+ADC setup.
 
-To create wav files from raw files, you can use Audacity to "Import/Raw Data", and choose "little endian", "Sample Rate: 22050".
+To create wav files from raw files, you can use Audacity to "Import/Raw Data", and choose "Sample Rate: 44000".
 
 ### Compiling/Flashing:
 The code comes ready to compile with VSCode using the PlatformIO extension. To flash your RP2040, hold the boot button then push the reset button to put the board into DFU mode. Hit the right arrow button at the bottom, and PlatformIO should load a UF2 file on the board. This code can also be compiled with Arduino IDE by adding the earlephilhower core (see the github link at the top of the readme).
