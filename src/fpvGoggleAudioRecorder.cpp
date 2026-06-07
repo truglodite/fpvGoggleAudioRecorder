@@ -26,6 +26,10 @@
 
     Requires:
     - Arduino-Pico (Earle Philhower)
+
+    Operation:
+    - Power on to start a recording session. Power off to stop a recording session.
+    - Next power on will start a new recording session.
 */
 
 #include <Arduino.h>
