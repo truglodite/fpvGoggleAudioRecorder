@@ -30,20 +30,13 @@
     Wiring:
         Device  |   Pin     |   RP2040 Pin
         --------|-----------|----
-        MIC     |   SEL     |   GND
         MIC     |   LRCL    |   11
         MIC     |   DOUT    |   12
         MIC     |   BCLK    |   10
-        MIC     |   GND     |   GND
-        MIC     |   3V      |   3v3
-        SD      |   GND     |   GND
         SD      |   MISO    |   4
         SD      |   CLK     |   2
         SD      |   MOSI    |   3
         SD      |   CS      |   5
-        SD      |   3v3     |   3v3
-        BUTT    |   A/B     |   6/GND
-
 
     Operation:
     - Use a decent quality SDcard (ie Sandisk C10), formatted in FAT or FAT32.
