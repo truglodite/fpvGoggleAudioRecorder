@@ -19,12 +19,14 @@ Simply plug in USB power, and the system will start to record. Unplug USB to sto
 
 When powering on, you should first see a blue LED to indicate boot status followed by a pulsating green LED to indicate normal recording, and with an occasional red flash during louder noises to indicate the clipping limiter is active. If you see just a repeating flashing red led, the SD card is failing. If you see an orange flashing LED, the audio buffer is falling behind.
 
+For convenience I created an executable file to quickly convert raw files recorded with the fpvGoggleAudioRecorder into easy to use wav files (fpv_session_to_wav_gui.exe). Click the exe, select the input folder (your SD card), and an output folder on your PC. The "rec_XXXXXXXX_YYYY.raw" files will be converted to "session_XXXXXXXX.wav" files and copied to your PC, ready for use with your favorite video editor.
+
 ### Recording Format:
 Similar to how a dashcam/bodycam works, this code records audio to *.raw files in a way that prevents data corruption when power is suddenly lost during recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
 
 The code makes use of an RMS audio compressor with smooth clipping that has been somewhat optimized for the hardware and intended application. Voices and noises farther away will have a similar volume to the voice of the person wearing the mic. Due to "aggressive AGC parameters", there will be some noise underlying the audio, but it is minimal. The audio performance with the ICS43434 using approach results much higher quality audio compared to the usual MAX9815+ADC setup.
 
-To create wav files from raw files, you can use Audacity to "Import/Raw Data", and choose "Sample Rate: 44000".
+To create wav files from the raw files, you can use Audacity to "Import/Raw Data", and choose "Sample Rate: 44000". Alternatively, you can use the included executable converter to help automate the process.
 
 ### Compiling/Flashing:
 The code comes ready to compile with VSCode using the PlatformIO extension. To flash your RP2040, hold the boot button then push the reset button to put the board into DFU mode. Hit the right arrow button at the bottom, and PlatformIO should load a UF2 file on the board. This code can also be compiled with Arduino IDE by adding the earlephilhower core (see the github link at the top of the readme).
