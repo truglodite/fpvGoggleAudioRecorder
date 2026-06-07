@@ -100,6 +100,7 @@ volatile bool diskFull = false;
 
 volatile bool recording = false;
 volatile bool rolloverPending = false;
+volatile bool limiterActive = false;
 
 // ======================================================
 // I2S
@@ -225,7 +226,7 @@ void updateLED()
             blink = !blink;
 
             if (blink)
-                setLED(100, 0, 0);
+                setLED(0, 100, 0);
             else
                 setLED(0, 0, 0);
 
@@ -239,7 +240,7 @@ void updateLED()
             blink = !blink;
 
             if (blink)
-                setLED(80, 0, 0);
+                setLED(0, 80, 0);
             else
                 setLED(0, 0, 0);
 
@@ -253,7 +254,7 @@ void updateLED()
             blink = !blink;
 
             if (blink)
-                setLED(80, 40, 0);
+                setLED(40, 80, 0);
             else
                 setLED(0, 0, 0);
 
@@ -263,11 +264,18 @@ void updateLED()
         case LED_RECORDING:
         {
             bool active =
-                (millis() - lastAudioMs) < 250;
+                (
+                    millis() -
+                    lastAudioMs
+                ) < 250;
 
             if (!active)
             {
-                setLED(0, 2, 0);
+                setLED(
+                    0,
+                    2,
+                    0
+                );
             }
             else
             {
@@ -284,7 +292,26 @@ void updateLED()
                         80
                     );
 
-                setLED(0, level, 0);
+                // Clip indicator
+                if (
+                    limiterActive
+                )
+                {
+                    setLED(
+                        0,
+                        80,
+                        0
+                    );
+                }
+                else
+                {
+                    // Audio level meter
+                    setLED(
+                        level,
+                        0,
+                        0
+                    );
+                }
             }
 
             break;
@@ -541,13 +568,22 @@ inline int16_t processSample(
 
     const float limit = 14000.0f;
 
-    if (dsp.env > limit)
+    limiterActive =
+        false;
+
+    if (
+        dsp.env >
+        limit
+    )
     {
+        limiterActive =
+            true;
+
         x *=
-            (
-                limit /
-                dsp.env
-            );
+        (
+            limit /
+            dsp.env
+        );
     }
 
     // ----------------------------------
