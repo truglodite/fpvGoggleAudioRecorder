@@ -21,6 +21,8 @@ When powering on, you should first see a blue LED to indicate boot status follow
 
 For convenience I created an executable file to quickly convert raw files recorded with the fpvGoggleAudioRecorder into easy to use wav files (fpv_session_to_wav_gui.exe). Click the exe, select the input folder (your SD card), and an output folder on your PC. The "rec_XXXXXXXX_YYYY.raw" files will be converted to "session_XXXXXXXX.wav" files and copied to your PC, ready for use with your favorite video editor.
 
+<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/rawConverter/audioConverter.png" width="600">
+
 ### Recording Format:
 Similar to how a dashcam/bodycam works, this code records audio to *.raw files in a way that prevents data corruption when power is suddenly lost during recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
 
