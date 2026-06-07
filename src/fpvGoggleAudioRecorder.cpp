@@ -28,6 +28,7 @@
     - Arduino-Pico (Earle Philhower)
 
     Operation:
+    - Use a decent quality SDcard (ie Sandisk C10), formatted in FAT or FAT32.
     - Power on to start a recording session. Power off to stop a recording session.
     - Next power on will start a new recording session.
 */
