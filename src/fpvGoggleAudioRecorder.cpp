@@ -6,6 +6,7 @@
     - Waveshare RP2040 Zero
     - ICS43434 I2S microphone
     - SPI microSD
+    - Momentary Segment Button on GPIO 6 (Active Low, Internal Pullup)
 
     Features:
     - Dual-core audio pipeline
@@ -17,7 +18,9 @@
     - Queue synchronization barriers
     - Disk full detection
     - Watchdog recovery
-    - Non-blocking LED updates
+    - Non-blocking LED updates with visual button feedback
+    - Instant power-on recording
+    - Manual file split / start new file button (GPIO 6)
 
     Audio:
     - RAW PCM
@@ -26,22 +29,6 @@
 
     Requires:
     - Arduino-Pico (Earle Philhower)
-
-    Wiring:
-        Device  |   Pin     |   RP2040 Pin
-        --------|-----------|----
-        MIC     |   LRCL    |   11
-        MIC     |   DOUT    |   12
-        MIC     |   BCLK    |   10
-        SD      |   MISO    |   4
-        SD      |   CLK     |   2
-        SD      |   MOSI    |   3
-        SD      |   CS      |   5
-
-    Operation:
-    - Use a decent quality SDcard (ie Sandisk C10), formatted in FAT or FAT32.
-    - Power on to start a recording session. Power off to stop a recording session.
-    - Next power on will start a new recording session.
 */
 
 #include <Arduino.h>
@@ -70,6 +57,7 @@
 
 #define SD_CS                  5
 #define LED_PIN                16
+#define BUTTON_PIN             6  // New File / Split Button on GPIO 6
 
 #define I2S_DATA_PIN           12
 #define I2S_BCLK_PIN           10
@@ -95,10 +83,12 @@ enum LedMode
     LED_RECORDING,
     LED_SD_WARN,
     LED_BUFFER_WARN,
-    LED_FATAL
+    LED_FATAL,
+    LED_BUTTON_SPLIT // Added: State for button press feedback
 };
 
 volatile LedMode ledMode = LED_BOOT;
+volatile uint32_t buttonFeedbackStartMs = 0; // Tracks when the blue LED turned on
 
 // ======================================================
 // SHARED STATE
@@ -203,6 +193,15 @@ void updateLedState()
         return;
     }
 
+    // Prioritize showing the blue button flash if it's currently active
+    if (ledMode == LED_BUTTON_SPLIT)
+    {
+        if ((millis() - buttonFeedbackStartMs) < 500) 
+        {
+            return; // Stay in blue flash mode for 500ms
+        }
+    }
+
     if (sdWarning)
     {
         ledMode = LED_SD_WARN;
@@ -274,6 +273,13 @@ void updateLED()
             else
                 setLED(0, 0, 0);
 
+            break;
+        }
+
+        case LED_BUTTON_SPLIT:
+        {
+            // Turn LED Solid Blue for file split confirmation
+            setLED(0, 0, 120); 
             break;
         }
 
@@ -910,7 +916,6 @@ void writeTaskStep()
             }
 
             closeSegment();
-
             openSegment();
 
             rolloverPending = false;
@@ -933,12 +938,6 @@ void writeTaskStep()
         sys.sdErrors++;
 
         sdWarning = true;
-
-        // crude disk-full indication
-        // repeated failures usually mean:
-        // - card removed
-        // - card full
-        // - filesystem issue
 
         if (
             sys.sdErrors > 10
@@ -1020,7 +1019,6 @@ void writeTaskStep()
         }
 
         closeSegment();
-
         openSegment();
 
         rolloverPending = false;
@@ -1062,6 +1060,45 @@ void printStats()
     Serial.print(" queued=");
     Serial.println(queueUsed());
 }
+
+// ======================================================
+// SINGLE BUTTON FILE SPLITTER (NEW FILE COMMAND)
+// ======================================================
+
+void checkButton()
+{
+    static uint32_t lastDebounceTime = 0;
+    static bool lastButtonState = HIGH;
+    static bool buttonState = HIGH;
+
+    bool reading = digitalRead(BUTTON_PIN);
+
+    if (reading != lastButtonState) {
+        lastDebounceTime = millis();
+    }
+
+    if ((millis() - lastDebounceTime) > 50) { 
+        if (reading != buttonState) {
+            buttonState = reading;
+
+            // Button Pressed down to GND (Falling Edge)
+            if (buttonState == LOW) {
+                if (recording && !rolloverPending) {
+                    Serial.println(">>> BUTTON PRESSED: FORCING NEW AUDIO FILE SEGMENT <<<");
+                    
+                    // Trigger blue LED state change
+                    ledMode = LED_BUTTON_SPLIT;
+                    buttonFeedbackStartMs = millis();
+                    
+                    rolloverPending = true; // Signals writeTaskStep to roll files cleanly
+                    MEMORY_BARRIER();
+                }
+            }
+        }
+    }
+    lastButtonState = reading;
+}
+
 // ======================================================
 // SETUP
 // ======================================================
@@ -1070,6 +1107,11 @@ void setup()
 {
     Serial.begin(115200);
     delay(1000);
+
+    // -----------------------------
+    // BUTTON INIT
+    // -----------------------------
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
 
     // -----------------------------
     // LED INIT
@@ -1143,7 +1185,8 @@ void setup()
 
     openSegment();
 
-    recording = true;
+    // RESTORED: Turn on recording automatically as soon as goggles boot
+    recording = true; 
 
     // -----------------------------
     // CORE 1 START
@@ -1201,6 +1244,11 @@ void loop()
     // -----------------------------
 
     watchdog_update();
+
+    // -----------------------------
+    // button interaction scan
+    // -----------------------------
+    checkButton();
 
     // -----------------------------
     // writer task

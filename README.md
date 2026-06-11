@@ -10,18 +10,18 @@ This code makes use of a Waveshare RP2040 Zero board, an ICS43434 i2s mic, and a
 - Waveshare RP2040 Zero: https://www.amazon.com/DWEII-RP2040-Zero-Microcontroller-Development-MicroPython/dp/B0C5Q2V49P
 - ICS43434 I2S Microphone: https://www.amazon.com/ICS43434-Microphone-Breakout-Module-Filter/dp/B0FMDGRM8F
 - Micro SD Card Breakout (3.3V): https://www.amazon.com/WWZMDiB-Module-Adapter-Memory-Shield/dp/B0BV8ZQ81F
-- 6mm Momentary NO Tactile Button (optional): https://www.amazon.com/Momentary-Tactile-Through-Breadboard-Friendly/dp/B07WF76VHT
+- 6mm Momentary NO Tactile Button: https://www.amazon.com/Momentary-Tactile-Through-Breadboard-Friendly/dp/B07WF76VHT
 
 * Note that an INMP441 mic could be used in place of the ICS43434 if needed, but audio quality is not quite as good. Also the printed enclosure only fits the ICS mic.
 
 ### Operation
-Simply plug in USB power, and the system will start to record. Unplug USB to stop the recording. 
+Simply plug in USB power, and the system will start to record. Unplug USB to stop the recording. If you need to start a new file during a recording session, hit the button, a blue LED will flash, and a new file will be started. This can be useful if for example you wait a while for GPS before launching, hit the button so you have an audio file that starts just before launching.
 
 When powering on, you should first see a blue LED to indicate boot status followed by a pulsating green LED to indicate normal recording, and with an occasional red flash during louder noises to indicate the clipping limiter is active. If you see just a repeating flashing red led, the SD card is failing. If you see an orange flashing LED, the audio buffer is falling behind.
 
-For convenience I created an executable file to quickly convert raw files recorded with the fpvGoggleAudioRecorder into easy to use wav files (fpv_session_to_wav_gui.exe). Click the exe, select the input folder (your SD card), and an output folder on your PC. The "rec_XXXXXXXX_YYYY.raw" files will be converted to "session_XXXXXXXX.wav" files and copied to your PC, ready for use with your favorite video editor.
+For convenience I created a windows executable to quickly convert raw files recorded with the fpvGoggleAudioRecorder into easy to use wav files (raw2wav.exe, in raw2wav/dist/). Click the exe, select the input folder (your SD card) and an output folder. The "rec_XXXXXXXX_YYYY.raw" files will be converted to "rec_XXXXXXXX_YYYY.wav" files and copied to your PC, ready for use with your favorite video editor.
 
-<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/rawConverter/audioConverter.png" width="600">
+<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/raw2wav/raw2wav.png" width="600">
 
 ### Recording Format:
 Similar to how a dashcam/bodycam works, this code records audio to *.raw files in a way that prevents data corruption when power is suddenly lost during recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
