@@ -5,7 +5,7 @@ a = Analysis(
     ['raw2wav.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('background.png', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
