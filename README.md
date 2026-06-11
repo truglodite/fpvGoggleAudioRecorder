@@ -24,11 +24,11 @@ For convenience I created a windows executable to quickly convert raw files reco
 <img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/raw2wav/raw2wav.png" width="600">
 
 ### Recording Format:
-Similar to how a dashcam/bodycam works, this code records audio to *.raw files in a way that prevents data corruption when power is suddenly lost during recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
+Similar to how a dashcam/bodycam works, this code records audio to raw PCM files with routines that prevent data corruption when power is suddenly lost while recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
 
 The code makes use of an RMS audio compressor with smooth clipping that has been somewhat optimized for the hardware and intended application. Voices and noises farther away will have a similar volume to the voice of the person wearing the mic. Due to "aggressive AGC parameters", there will be some noise underlying the audio, but it is minimal. The audio performance with the ICS43434 using approach results much higher quality audio compared to the usual MAX9815+ADC setup.
 
-To create wav files from the raw files, you can use Audacity to "Import/Raw Data", and choose "Sample Rate: 44000". Alternatively, you can use the included executable converter to help automate the process.
+To create wav files from the raw files, you can use Audacity to "Import/Raw Data", and choose "little endian" and "Sample Rate: 44000". Alternatively, you can use the included executable converter.
 
 ### Compiling/Flashing:
 The code comes ready to compile with VSCode using the PlatformIO extension. To flash your RP2040, hold the boot button then push the reset button to put the board into DFU mode. Hit the right arrow button at the bottom, and PlatformIO should load a UF2 file on the board. This code can also be compiled with Arduino IDE by adding the earlephilhower core (see the github link at the top of the readme).
