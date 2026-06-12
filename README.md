@@ -1,9 +1,9 @@
 # fpvGoggleAudioRecorder
 ## A reliable audio recording device for FPV goggles
 
-<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/enclosure/IMG_2937_1.jpg" width="600">
+<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/images/IMG_2937_1.jpg" width="600">
 
-This code makes use of a Waveshare RP2040 Zero board, an ICS43434 i2s mic, and a 3v3 micro SD card reader to record ambient noises and voices for FPV flying sessions. The Earle Philhower RP2040 Pico library is required to compile. https://github.com/earlephilhower/arduino-pico
+This is code for a plug and forget ambient audio recorder, intended for use with FPV goggles (like DJI goggles).
 
 ### Hardware:
 *No pins installed if using the printable enclosure*
@@ -19,19 +19,28 @@ Simply plug in USB power, and the system will start to record. Unplug USB to sto
 
 When powering on, you should first see a blue LED to indicate boot status followed by a pulsating green LED to indicate normal recording, and with an occasional red flash during louder noises to indicate the clipping limiter is active. If you see just a repeating flashing red led, the SD card is failing. If you see an orange flashing LED, the audio buffer is falling behind.
 
-For convenience I created a windows executable to quickly convert raw files recorded with the fpvGoggleAudioRecorder into easy to use wav files (raw2wav.exe, in raw2wav/dist/). Click the exe, select the input folder (your SD card) and an output folder. The "rec_XXXXXXXX_YYYY.raw" files will be converted to "rec_XXXXXXXX_YYYY.wav" files and copied to your PC, ready for use with your favorite video editor.
+<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/images/2940_1.jpg" width="600">
 
-<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/raw2wav/raw2wav.png" width="600">
+The goggle battery should be more than adequate even for very long flying sessions. The circuit draws only ~50mA while recording.
 
 ### Recording Format:
 Similar to how a dashcam/bodycam works, this code records audio to raw PCM files with routines that prevent data corruption when power is suddenly lost while recording. When power is cutoff, only the last seconds of the recording session will be lost. The files are named "rec_X-Y.raw", where X is the recording session, and Y is the audio segment. Both X and Y increment to allow easy reconstruction of wav files. The "manifest.txt" file keeps a log of segments that have been saved, as well as segments that were lost due to power cutoff. The newest segments will be at the top of the manifest file.
 
 The code makes use of an RMS audio compressor with smooth clipping that has been somewhat optimized for the hardware and intended application. Voices and noises farther away will have a similar volume to the voice of the person wearing the mic. Due to "aggressive AGC parameters", there will be some noise underlying the audio, but it is minimal. The audio performance with the ICS43434 using approach results much higher quality audio compared to the usual MAX9815+ADC setup.
 
-To create wav files from the raw files, you can use Audacity to "Import/Raw Data", and choose "little endian" and "Sample Rate: 44000". Alternatively, you can use the included executable converter.
+<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/images/raw2wav.png" width="600">
 
-### Compiling/Flashing:
-The code comes ready to compile with VSCode using the PlatformIO extension. To flash your RP2040, hold the boot button then push the reset button to put the board into DFU mode. Hit the right arrow button at the bottom, and PlatformIO should load a UF2 file on the board. This code can also be compiled with Arduino IDE by adding the earlephilhower core (see the github link at the top of the readme).
+For convenience I created `raw2wav.exe`, a Windows executable that converts raw files recorded with the fpvGoggleAudioRecorder into easy to use wav files (raw2wav.exe, in raw2wav/dist/). To use the converter, run the `raw2wav.exe`, select the input folder (your SD card) and optionally an output folder. If any of the loaded files do not need conversion, uncheck the box next to them in the file selector area. Click the "Start" button to convert the selected files. The log area near the bottom shows which files are being converted and where the converted files are saved. You can click an output path in the log area to open the output folder in explorer.
+
+Alternatively, you can use an audio editing program like Audacity to "import raw data", with "little endian" and "44000" bit rate, and export a wav file.
+
+### Flashing/Compiling:
+To flash your RP2040 with the included firmware (`.pio/build/pico/firmware.uf2`), hold the boot button then press/release the reset button to put the board into flashing mode. The RP2040 should show up as a mass storage device in explorer. Simply copy `firmware.uf2` to the root of the RP2040, and reboot.
+
+If you would like to customize the code, you should import this repo to PlatformIO. The maxgerhardt raspi platform, the earlephilhower pico core, and the Adafruit NeoPixel library are required for compiling.
+
+https://github.com/maxgerhardt/platform-raspberrypi.git
+https://github.com/earlephilhower/arduino-pico
 
 ### Wiring:
 Connect the hardware as shown in the table below. The button is optional for manual recording variants, and is not required for autorecording.
