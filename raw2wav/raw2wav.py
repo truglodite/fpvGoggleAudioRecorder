@@ -2,7 +2,7 @@
 # Companion app for fpvGoggleAudioRecorder to convert raw pcm files to wav files
 # Compiling requires python 3, pillow, and PySide6
 # Compile command (from raw2wav.py directory): pyinstaller --noconsole --onefile --add-data "background.png;." --add-data "icon.png;." raw2wav.py
-# Background image is 900x720 pixels, Icon image should be 32x32 or 64x64 pixels
+# Background image is 900x750 pixels, Icon image should be 32x32 or 64x64 pixels
 
 import sys
 import os
@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("FPV Converter PRO")
-        self.setFixedSize(900, 720)
+        self.setFixedSize(900, 750)
 
         # SET CUSTOM WINDOW & TASKBAR ICON
         # Looks for an "icon.png" inside your local file script tree or compiled executable bundle
@@ -96,12 +96,12 @@ class MainWindow(QMainWindow):
         pix = QPixmap(resource_path("background.png"))
         self.bg.setPixmap(pix)
         self.bg.setScaledContents(True)
-        self.bg.setGeometry(0, 0, 900, 720)
+        self.bg.setGeometry(0, 0, 900, 750)
         self.bg.lower()
 
         # Container
         container = QWidget(self)
-        container.setGeometry(0, 0, 900, 720)
+        container.setGeometry(0, 0, 900, 750)
         container.setAttribute(Qt.WA_TranslucentBackground)
 
         layout = QVBoxLayout(container)
