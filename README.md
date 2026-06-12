@@ -19,7 +19,7 @@ Simply plug in USB power, and the system will start to record. Unplug USB to sto
 
 When powering on, you should first see a blue LED to indicate boot status followed by a pulsating green LED to indicate normal recording, and with an occasional red flash during louder noises to indicate the clipping limiter is active. If you see just a repeating flashing red led, the SD card is failing. If you see an orange flashing LED, the audio buffer is falling behind.
 
-<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/images/2940_1.jpg" width="600">
+<img src="https://github.com/truglodite/fpvgoggleaudiorecorder/blob/main/images/IMG_2940_1.jpg" width="600">
 
 The goggle battery should be more than adequate even for very long flying sessions. The circuit draws only ~50mA while recording.
 
