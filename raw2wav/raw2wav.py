@@ -1,412 +1,685 @@
-import os
+# raw2wav.py
+# Companion app for fpvGoggleAudioRecorder to convert raw pcm files to wav files
+# Compiling requires python 3, pillow, and PySide6
+# Compile command (from raw2wav.py directory): pyinstaller --noconsole --onefile --add-data "background.png;." raw2wav.py
+# Background image is 900x720 pixels
+
 import sys
+import os
 import wave
 import threading
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QPushButton,
+    QFileDialog,
+    QLabel,
+    QVBoxLayout,
+    QHBoxLayout,
+    QTextEdit,
+    QListWidget,
+    QProgressBar
+)
+
+from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt, Signal, QObject
 
 
-class RawToWavConverterGUI:
+# -------------------------
+# THREAD SAFE SIGNALS
+# -------------------------
 
-    def __init__(self, root):
+class Bridge(QObject):
+    log = Signal(str)
+    progress = Signal(int)
+    status = Signal(str)
 
-        self.root = root
 
-        self.root.title(
-            "FPV Goggle Audio Converter"
+def resource_path(name):
+    base = getattr(
+        sys,
+        "_MEIPASS",
+        os.path.dirname(os.path.abspath(__file__))
+    )
+    return os.path.join(base, name)
+
+
+class MainWindow(QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle(
+            "FPV Converter PRO"
         )
 
-        self.root.geometry(
-            "900x720"
-        )
-
-        self.root.minsize(
+        self.setFixedSize(
             900,
             720
         )
 
-        self.sample_rate = 44100
-        self.channels = 1
-        self.sample_width = 2
+        self.files = []
 
-        self.load_background()
-        self.build_ui()
+        self.use_custom = False
+        self.output_folder = ""
 
-    def resource(self, filename):
+        self.bridge = Bridge()
 
-        if getattr(sys, "frozen", False):
+        self.bridge.log.connect(
+            self.log_msg
+        )
 
-            return os.path.join(
-                sys._MEIPASS,
-                filename
+        self.bridge.progress.connect(
+            self.progress_set
+        )
+
+        self.bridge.status.connect(
+            self.status_set
+        )
+
+        self.init_ui()
+
+    # -------------------------
+    # UI
+    # -------------------------
+
+    def init_ui(self):
+
+        self.bg = QLabel(self)
+
+        pix = QPixmap(
+            resource_path(
+                "background.png"
             )
+        )
 
-        return os.path.join(
-            os.path.dirname(
-                os.path.abspath(
-                    __file__
+        self.bg.setPixmap(pix)
+
+        self.bg.setScaledContents(
+            True
+        )
+
+        self.bg.setGeometry(
+            0,
+            0,
+            900,
+            720
+        )
+
+        self.bg.lower()
+
+        container = QWidget(self)
+
+        container.setGeometry(
+            0,
+            0,
+            900,
+            720
+        )
+
+        container.setAttribute(
+            Qt.WA_TranslucentBackground
+        )
+
+        layout = QVBoxLayout(
+            container
+        )
+
+        layout.setContentsMargins(
+            15,
+            15,
+            15,
+            15
+        )
+
+        layout.setSpacing(
+            10
+        )
+
+        title = QLabel(
+            "FPV RAW → WAV CONVERTER PRO"
+        )
+
+        title.setStyleSheet("""
+            color:white;
+            font-size:20px;
+            font-weight:bold;
+        """)
+
+        layout.addWidget(
+            title
+        )
+
+        # BUTTONS
+
+        row = QHBoxLayout()
+
+        self.btn_folder = QPushButton(
+            "Folder"
+        )
+
+        self.btn_files = QPushButton(
+            "Files"
+        )
+
+        self.btn_start = QPushButton(
+            "START"
+        )
+
+        self.btn_start.setEnabled(
+            False
+        )
+
+        self.default_style = """
+        QPushButton {
+            background: rgba(40,40,40,180);
+            color:white;
+            padding:8px;
+            border-radius:6px;
+        }
+
+        QPushButton:hover {
+            background: rgba(70,70,70,200);
+        }
+
+        QPushButton:disabled {
+            background: rgba(25,25,25,140);
+            color: rgba(255,255,255,120);
+        }
+        """
+
+        self.start_style = """
+        QPushButton {
+            background: rgba(0,120,255,230);
+            color:white;
+            padding:8px;
+            border-radius:6px;
+            font-weight:bold;
+        }
+
+        QPushButton:hover {
+            background: rgba(20,150,255,255);
+        }
+        """
+
+        self.btn_folder.setStyleSheet(
+            self.default_style
+        )
+
+        self.btn_files.setStyleSheet(
+            self.default_style
+        )
+
+        self.btn_start.setStyleSheet(
+            self.default_style
+        )
+
+        row.addWidget(
+            self.btn_folder
+        )
+
+        row.addWidget(
+            self.btn_files
+        )
+
+        row.addWidget(
+            self.btn_start
+        )
+
+        layout.addLayout(
+            row
+        )
+
+        # BODY
+
+        body = QHBoxLayout()
+
+        self.queue = QListWidget()
+
+        self.queue.setStyleSheet("""
+        QListWidget {
+            background: rgba(0,0,0,140);
+            color:white;
+            border-radius:8px;
+        }
+        """)
+
+        body.addWidget(
+            self.queue,
+            2
+        )
+
+        right = QVBoxLayout()
+
+        input_row = QHBoxLayout()
+
+        self.input_dot = QLabel(
+            "●"
+        )
+
+        self.input_label = QLabel(
+            "Input: None"
+        )
+
+        self.input_label.setStyleSheet("""
+            color:red;
+            font-size:11px;
+            font-family:Consolas;
+            font-weight:bold;
+        """)
+
+        input_row.addWidget(
+            self.input_dot
+        )
+
+        input_row.addWidget(
+            self.input_label
+        )
+
+        right.addLayout(
+            input_row
+        )
+
+        self.custom_btn = QPushButton(
+            "Use Custom Output Folder"
+        )
+
+        self.custom_btn.setCheckable(
+            True
+        )
+
+        self.custom_btn.clicked.connect(
+            self.pick_output_folder
+        )
+
+        right.addWidget(
+            self.custom_btn
+        )
+
+        output_row = QHBoxLayout()
+
+        self.output_dot = QLabel(
+            "●"
+        )
+
+        self.path_label = QLabel(
+            "Output: Default (same as input)"
+        )
+        
+        self.path_label.setStyleSheet("""
+            color:red;
+            font-size:11px;
+            font-family:Consolas;
+                font-weight:bold;
+            """
+        )
+        
+        output_row.addWidget(
+            self.output_dot
+        )
+
+        output_row.addWidget(
+            self.path_label
+        )
+
+        right.addLayout(
+            output_row
+        )
+
+        self.status = QLabel(
+            "Idle"
+        )
+
+        self.status.setStyleSheet(
+            "color:white;"
+        )
+
+        right.addWidget(
+            self.status
+        )
+
+        self.progress = QProgressBar()
+
+        self.progress.setFormat(
+            "%p% (%v/%m)"
+        )
+
+        right.addWidget(
+            self.progress
+        )
+
+        right.addStretch()
+
+        body.addLayout(
+            right,
+            1
+        )
+
+        layout.addLayout(
+            body
+        )
+
+        self.log = QTextEdit()
+
+        self.log.setReadOnly(
+            True
+        )
+
+        self.log.setStyleSheet("""
+        QTextEdit {
+            background: rgba(0,0,0,160);
+            color:#00FF88;
+            font-family:Consolas;
+        }
+        """)
+
+        layout.addWidget(
+            self.log
+        )
+
+        self.btn_folder.clicked.connect(
+            self.select_folder
+        )
+
+        self.btn_files.clicked.connect(
+            self.select_files
+        )
+
+        self.btn_start.clicked.connect(
+            self.convert
+        )
+
+        self.update_states()
+
+    # -------------------------
+
+    def update_states(self):
+
+        valid = bool(
+            self.files
+        )
+
+        active = "#00FF88"
+        inactive = "red"
+
+        color = (
+            active
+            if valid
+            else inactive
+        )
+
+        # STATUS DOTS
+
+        self.input_dot.setStyleSheet(
+            f"""
+            color:{color};
+            font-size:14px;
+            """
+        )
+
+        self.output_dot.setStyleSheet(
+            f"""
+            color:{color};
+            font-size:14px;
+            """
+        )
+
+        # LABELS MATCH DOTS
+
+        label_style = f"""
+            color:{color};
+            font-size:11px;
+            font-family:Consolas;
+            font-weight:bold;
+        """
+
+        self.input_label.setStyleSheet(
+            label_style
+        )
+
+        self.path_label.setStyleSheet(
+            label_style
+        )
+
+        # INPUT LABEL
+
+        if valid:
+
+            if len(
+                self.files
+            ) == 1:
+
+                self.input_label.setText(
+                    f"Input: {self.files[0]}"
                 )
-            ),
-            filename
-        )
 
-    def load_background(self):
+            else:
 
-        try:
-
-            self.bg = tk.PhotoImage(
-                file=self.resource(
-                    "background.png"
+                self.input_label.setText(
+                    f"Input: {len(self.files)} files selected"
                 )
+
+        else:
+
+            self.input_label.setText(
+                "Input: None"
             )
 
-            self.bg_label = tk.Label(
-                self.root,
-                image=self.bg,
-                bd=0
+        # OUTPUT LABEL
+
+        if (
+            self.use_custom
+            and self.output_folder
+        ):
+
+            self.path_label.setText(
+                f"Output: {self.output_folder}"
             )
 
-            self.bg_label.place(
-                x=0,
-                y=0,
-                relwidth=1,
-                relheight=1
+        else:
+
+            self.path_label.setText(
+                "Output: Default (same as input)"
             )
 
-        except Exception as e:
+        # START BUTTON
 
-            print(
-                "Background error:",
-                e
-            )
-
-    def build_ui(self):
-
-        y = 20
-
-        title = tk.Label(
-            self.bg_label,
-            text="FPV Goggle Audio RAW → WAV Converter",
-            font=("Segoe UI", 18, "bold"),
-            fg="white",
-            bg="#222222"
+        self.btn_start.setEnabled(
+            valid
         )
 
-        title.place(
-            x=20,
-            y=y
+        self.btn_start.setStyleSheet(
+            self.start_style
+            if valid
+            else self.default_style
         )
 
-        y += 50
-
-        self.btn_folder = ttk.Button(
-            self.bg_label,
-            text="Convert Folder",
-            command=self.start_folder
-        )
-
-        self.btn_folder.place(
-            x=20,
-            y=y
-        )
-
-        self.btn_files = ttk.Button(
-            self.bg_label,
-            text="Convert Specific Files",
-            command=self.start_files
-        )
-
-        self.btn_files.place(
-            x=180,
-            y=y
-        )
-
-        y += 55
-
-        self.use_custom = tk.BooleanVar()
-
-        self.chk = tk.Checkbutton(
-            self.bg_label,
-            text="Use custom output folder",
-            variable=self.use_custom,
-            command=self.toggle_output,
-            bg="#222222",
-            fg="white",
-            selectcolor="#222222"
-        )
-
-        self.chk.place(
-            x=20,
-            y=y
-        )
-
-        y += 35
-
-        self.output_path = tk.StringVar()
-
-        self.entry = ttk.Entry(
-            self.bg_label,
-            textvariable=self.output_path,
-            width=65,
-            state="disabled"
-        )
-
-        self.entry.place(
-            x=20,
-            y=y
-        )
-
-        self.btn_browse = ttk.Button(
-            self.bg_label,
-            text="Browse",
-            state="disabled",
-            command=self.pick_output_folder
-        )
-
-        self.btn_browse.place(
-            x=520,
-            y=y
-        )
-
-        y += 60
-
-        self.status = tk.Label(
-            self.bg_label,
-            text="Status: Idle",
-            fg="white",
-            bg="#222222"
-        )
-
-        self.status.place(
-            x=20,
-            y=y
-        )
-
-        y += 35
-
-        self.progress = ttk.Progressbar(
-            self.bg_label,
-            length=760
-        )
-
-        self.progress.place(
-            x=20,
-            y=y
-        )
-
-        y += 50
-
-        self.log = tk.Text(
-            self.bg_label,
-            bg="#111111",
-            fg="#00FF88",
-            insertbackground="white",
-            font=("Consolas", 10)
-        )
-
-        self.log.place(
-            x=20,
-            y=y,
-            width=840,
-            height=300
-        )
-
-    def toggle_output(self):
-
-        state = (
-            "normal"
-            if self.use_custom.get()
-            else "disabled"
-        )
-
-        self.entry.config(
-            state=state
-        )
-
-        self.btn_browse.config(
-            state=state
-        )
+    # -------------------------
 
     def pick_output_folder(self):
 
-        folder = filedialog.askdirectory()
+        folder = QFileDialog.getExistingDirectory(
+            self
+        )
 
         if folder:
 
-            self.output_path.set(
-                folder
+            self.use_custom = True
+            self.output_folder = folder
+
+            self.path_label.setText(
+                f"Output: {folder}"
             )
 
-    def write_log(self, msg):
+        else:
 
-        self.log.insert(
-            tk.END,
-            msg + "\n"
+            self.use_custom = False
+            self.output_folder = ""
+
+            self.path_label.setText(
+                "Output: Default (same as input)"
+            )
+
+    def log_msg(self, msg):
+        self.log.append(msg)
+
+    def progress_set(self, v):
+        self.progress.setValue(v)
+
+    def status_set(self, s):
+        self.status.setText(s)
+
+    def select_folder(self):
+
+        folder = QFileDialog.getExistingDirectory(
+            self
         )
-
-        self.log.see(
-            tk.END
-        )
-
-    def start_folder(self):
-
-        folder = filedialog.askdirectory()
 
         if not folder:
             return
 
-        files = []
+        self.files = [
+            os.path.join(folder, f)
+            for f in os.listdir(folder)
+            if f.lower().endswith(".raw")
+        ]
 
-        for f in os.listdir(folder):
+        self.refresh_queue()
 
-            if f.lower().endswith(".raw"):
+        self.update_states()
 
-                files.append(
-                    os.path.join(
-                        folder,
-                        f
-                    )
-                )
+    def select_files(self):
 
-        if not files:
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select RAW files",
+            "",
+            "RAW Files (*.raw)"
+        )
 
-            messagebox.showinfo(
-                "None Found",
-                "No RAW files found."
+        self.files = files
+
+        self.refresh_queue()
+
+        self.update_states()
+
+    def refresh_queue(self):
+
+        self.queue.clear()
+
+        for f in self.files:
+
+            self.queue.addItem(
+                os.path.basename(f)
             )
 
+    def convert(self):
+
+        if not self.files:
             return
 
+        def worker():
+
+            total = len(
+                self.files
+            )
+
+            self.progress.setMaximum(
+                total
+            )
+
+            self.bridge.log.emit(
+                "---- CONVERSION START ----"
+            )
+
+            for i, f in enumerate(
+                self.files
+            ):
+
+                try:
+
+                    out = (
+                        self.output_folder
+                        if self.use_custom
+                        else os.path.dirname(f)
+                    )
+
+                    wav = os.path.join(
+                        out,
+                        os.path.splitext(
+                            os.path.basename(f)
+                        )[0] + ".wav"
+                    )
+
+                    self.bridge.log.emit(
+                        f"[INPUT]  {os.path.abspath(f)}"
+                    )
+
+                    with open(
+                        f,
+                        "rb"
+                    ) as r:
+
+                        data = r.read()
+
+                    with wave.open(
+                        wav,
+                        "wb"
+                    ) as w:
+
+                        w.setnchannels(1)
+                        w.setsampwidth(2)
+                        w.setframerate(
+                            44100
+                        )
+                        w.writeframes(
+                            data
+                        )
+
+                    self.bridge.log.emit(
+                        f"[OUTPUT] {os.path.abspath(wav)}"
+                    )
+
+                except Exception as e:
+
+                    self.bridge.log.emit(
+                        f"[ERROR] {e}"
+                    )
+
+                self.bridge.progress.emit(
+                    i + 1
+                )
+
+                self.bridge.status.emit(
+                    f"{i+1}/{total}"
+                )
+
+            self.bridge.log.emit(
+                "---- CONVERSION COMPLETE ----"
+            )
+
+            self.bridge.status.emit(
+                "Done"
+            )
+
         threading.Thread(
-            target=self.convert,
-            args=(files,),
+            target=worker,
             daemon=True
         ).start()
 
-    def start_files(self):
 
-        files = filedialog.askopenfilenames(
-            title="Select RAW files",
-            filetypes=[
-                (
-                    "RAW Files",
-                    "*.raw"
-                )
-            ]
-        )
+if __name__ == "__main__":
 
-        if files:
+    app = QApplication(
+        sys.argv
+    )
 
-            threading.Thread(
-                target=self.convert,
-                args=(list(files),),
-                daemon=True
-            ).start()
+    window = MainWindow()
 
-    def convert(self, files):
+    window.show()
 
-        self.progress["maximum"] = len(
-            files
-        )
-
-        ok = 0
-
-        for i, raw in enumerate(files):
-
-            try:
-
-                wav_name = (
-                    os.path.splitext(
-                        os.path.basename(
-                            raw
-                        )
-                    )[0]
-                    + ".wav"
-                )
-
-                if (
-                    self.use_custom.get()
-                    and self.output_path.get()
-                ):
-
-                    wav = os.path.join(
-                        self.output_path.get(),
-                        wav_name
-                    )
-
-                else:
-
-                    wav = os.path.join(
-                        os.path.dirname(
-                            raw
-                        ),
-                        wav_name
-                    )
-
-                with open(
-                    raw,
-                    "rb"
-                ) as r:
-
-                    data = r.read()
-
-                with wave.open(
-                    wav,
-                    "wb"
-                ) as w:
-
-                    w.setnchannels(
-                        self.channels
-                    )
-
-                    w.setsampwidth(
-                        self.sample_width
-                    )
-
-                    w.setframerate(
-                        self.sample_rate
-                    )
-
-                    w.writeframes(
-                        data
-                    )
-
-                ok += 1
-
-                self.write_log(
-                    "[OK] "
-                    + wav_name
-                )
-
-            except Exception as e:
-
-                self.write_log(
-                    "[ERROR] "
-                    + str(e)
-                )
-
-            self.progress["value"] = i + 1
-
-            self.status.config(
-                text=f"{i+1}/{len(files)}"
-            )
-
-            self.root.update_idletasks()
-
-        self.status.config(
-            text="Completed"
-        )
-
-        messagebox.showinfo(
-            "Done",
-            f"Converted {ok}/{len(files)} files"
-        )
-
-
-root = tk.Tk()
-
-RawToWavConverterGUI(
-    root
-)
-
-root.mainloop()
+    sys.exit(
+        app.exec()
+    )
