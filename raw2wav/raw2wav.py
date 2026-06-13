@@ -1,8 +1,7 @@
 # raw2wav.py
-# Companion app for fpvGoggleAudioRecorder to convert raw pcm files to wav files
+# Companion app for fpvGoggleAudioRecorder to convert raw 16-bit or 24-bit pcm files to wav files
 # Compiling requires python 3, pillow, and PySide6
 # Compile command (from raw2wav.py directory): pyinstaller --noconsole --onefile --add-data "background.png;." --add-data "icon.png;." raw2wav.py
-# Background image is 900x750 pixels, Icon image should be 32x32 or 64x64 pixels
 
 import sys
 import os
@@ -13,13 +12,13 @@ import subprocess
 # Natively handle Windows taskbar ID registry to ensure the icon displays correctly
 if sys.platform == "win32":
     import ctypes
-    myappid = "mycompany.fpvconverter.raw2wav.1.0"  # Arbitrary unique string descriptor
+    myappid = "mycompany.fpvconverter.raw2wav.1.0"  
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QPushButton, QFileDialog, 
     QLabel, QVBoxLayout, QHBoxLayout, QTextBrowser, QTableWidget, QTableWidgetItem, QProgressBar,
-    QGraphicsDropShadowEffect, QHeaderView
+    QGraphicsDropShadowEffect, QHeaderView, QComboBox
 )
 from PySide6.QtGui import QPixmap, QColor, QFont, QIcon
 from PySide6.QtCore import Qt, Signal, QObject, QUrl
@@ -31,6 +30,7 @@ from PySide6.QtCore import Qt, Signal, QObject, QUrl
 class Bridge(QObject):
     log = Signal(str)
     progress = Signal(int)
+    max_progress = Signal(int)
     status = Signal(str)
 
 
@@ -49,13 +49,15 @@ def get_raw_file_size_str(filepath):
         return "0.00 MB"
 
 
-def get_raw_duration(filepath):
-    """Calculates the playtime of a raw PCM file based on 44100Hz, 16-bit, Mono."""
+def get_raw_duration(filepath, bit_depth_index):
+    """Calculates play time of raw PCM file based on sample width index (0=16bit, 1=24bit)."""
     try:
         file_size = os.path.getsize(filepath)
-        # 1 channel * 2 bytes per sample (16-bit) * 44100 samples per second = 88200 bytes per second
-        total_seconds = int(file_size / 88200)
+        # 16-bit = 2 bytes per sample. 24-bit = 3 bytes per sample.
+        bytes_per_sample = 2 if bit_depth_index == 0 else 3
+        bytes_per_second = 1 * bytes_per_sample * 44100
         
+        total_seconds = int(file_size / bytes_per_second)
         minutes = total_seconds // 60
         seconds = total_seconds % 60
         return f"{minutes:02d}:{seconds:02d}"
@@ -70,28 +72,26 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("FPV Converter PRO")
         self.setFixedSize(900, 750)
-
-        # SET CUSTOM WINDOW & TASKBAR ICON
-        # Looks for an "icon.png" inside your local file script tree or compiled executable bundle
         self.setWindowIcon(QIcon(resource_path("icon.png")))
 
         self.files = []
         self.use_custom = False
         self.output_folder = ""
 
+        # Initialize UI first so elements are ready for signals
+        self.init_ui()
+
         self.bridge = Bridge()
         self.bridge.log.connect(self.log_msg)
         self.bridge.progress.connect(self.progress_set)
+        self.bridge.max_progress.connect(self.progress.setMaximum)
         self.bridge.status.connect(self.status_set)
 
-        self.init_ui()
-
     # -------------------------
-    # UI
+    # UI SETUP
     # -------------------------
 
     def init_ui(self):
-        # Background Setup
         self.bg = QLabel(self)
         pix = QPixmap(resource_path("background.png"))
         self.bg.setPixmap(pix)
@@ -99,7 +99,6 @@ class MainWindow(QMainWindow):
         self.bg.setGeometry(0, 0, 900, 750)
         self.bg.lower()
 
-        # Container
         container = QWidget(self)
         container.setGeometry(0, 0, 900, 750)
         container.setAttribute(Qt.WA_TranslucentBackground)
@@ -108,7 +107,6 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(10)
 
-        # CENTERED & GLOWING TITLE
         title = QLabel("FPV RAW → WAV CONVERTER PRO")
         title.setAlignment(Qt.AlignCenter)
         
@@ -131,7 +129,6 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(title)
 
-        # BUTTONS ROW
         row = QHBoxLayout()
         self.btn_folder = QPushButton("Folder")
         self.btn_files = QPushButton("Files")
@@ -176,15 +173,12 @@ class MainWindow(QMainWindow):
         row.addWidget(self.btn_start)
         layout.addLayout(row)
 
-        # BODY LAYOUT
         body = QHBoxLayout()
-
-        # Left Column Container (Queue Table)
         left_panel = QVBoxLayout()
 
         self.queue = QTableWidget()
-        self.queue.setColumnCount(3)
-        self.queue.setHorizontalHeaderLabels(["File Name", "Size", "Duration"])
+        self.queue.setColumnCount(4)
+        self.queue.setHorizontalHeaderLabels(["File Name", "Size", "Bit Depth", "Duration"])
         self.queue.verticalHeader().setVisible(False)
         self.queue.setSelectionBehavior(QTableWidget.SelectRows)
         self.queue.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -216,15 +210,15 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
         header.setSectionResizeMode(2, QHeaderView.Interactive)
-        self.queue.setColumnWidth(1, 100)
-        self.queue.setColumnWidth(2, 90)
+        header.setSectionResizeMode(3, QHeaderView.Interactive)
+        self.queue.setColumnWidth(1, 90)
+        self.queue.setColumnWidth(2, 100)
+        self.queue.setColumnWidth(3, 85)
 
         left_panel.addWidget(self.queue)
         body.addLayout(left_panel, 2)
 
-        # Right Side Control Panel
         right = QVBoxLayout()
-
         input_row = QHBoxLayout()
         self.input_dot = QLabel("●")
         self.input_label = QLabel("Input: None")
@@ -256,7 +250,6 @@ class MainWindow(QMainWindow):
         body.addLayout(right, 1)
         layout.addLayout(body)
 
-        # INTERACTIVE LOG WINDOW
         self.log = QTextBrowser()
         self.log.setReadOnly(True)
         self.log.setOpenLinks(False)
@@ -276,7 +269,6 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(self.log)
 
-        # Connections
         self.btn_folder.clicked.connect(self.select_folder)
         self.btn_files.clicked.connect(self.select_files)
         self.btn_start.clicked.connect(self.convert)
@@ -290,7 +282,6 @@ class MainWindow(QMainWindow):
     # -------------------------
 
     def open_path_in_explorer(self, url: QUrl):
-        """Cross-platform directory handler to open path in OS explorer and highlight target file."""
         local_path = url.toLocalFile()
         if not os.path.exists(local_path):
             return
@@ -308,10 +299,14 @@ class MainWindow(QMainWindow):
 
     def update_states(self):
         checked_count = 0
+        first_checked_file = ""
+        
         for i in range(self.queue.rowCount()):
             item = self.queue.item(i, 0)
             if item and item.checkState() == Qt.Checked:
                 checked_count += 1
+                if not first_checked_file:
+                    first_checked_file = self.files[i]
 
         valid = checked_count > 0
         active = "#00FF88"
@@ -326,11 +321,7 @@ class MainWindow(QMainWindow):
 
         if valid:
             if checked_count == 1:
-                for i in range(self.queue.rowCount()):
-                    item = self.queue.item(i, 0)
-                    if item and item.checkState() == Qt.Checked:
-                        self.input_label.setText(f"Input: {self.files[i]}")
-                        break
+                self.input_label.setText(f"Input: {os.path.basename(first_checked_file)}")
             else:
                 self.input_label.setText(f"Input: {checked_count} files selected to convert")
         else:
@@ -402,6 +393,13 @@ class MainWindow(QMainWindow):
             self.refresh_queue()
             self.update_states()
 
+    def update_row_duration(self, row, filepath, index):
+        """Callback to update duration string dynamically when a user updates bitdepth selection."""
+        duration_str = get_raw_duration(filepath, index)
+        duration_item = QTableWidgetItem(duration_str)
+        duration_item.setTextAlignment(Qt.AlignCenter)
+        self.queue.setItem(row, 3, duration_item)
+
     def refresh_queue(self):
         self.queue.blockSignals(True)
         self.queue.setRowCount(0)
@@ -410,7 +408,6 @@ class MainWindow(QMainWindow):
         for row_index, f in enumerate(self.files):
             filename = os.path.basename(f)
             size_str = get_raw_file_size_str(f)
-            duration_str = get_raw_duration(f)
             
             name_item = QTableWidgetItem(filename)
             name_item.setFlags(name_item.flags() | Qt.ItemIsUserCheckable)
@@ -421,9 +418,41 @@ class MainWindow(QMainWindow):
             size_item.setTextAlignment(Qt.AlignCenter) 
             self.queue.setItem(row_index, 1, size_item)
             
+            # Interactive ComboBox inside Table Widget Row
+            combo = QComboBox()
+            combo.addItems(["16-bit", "24-bit"])
+            
+            # Smart Defaulting: Check if ".24bit" is part of the filename
+            if ".24bit" in filename.lower():
+                default_index = 1  # 24-bit
+            else:
+                default_index = 0  # 16-bit
+                
+            combo.setCurrentIndex(default_index)
+            combo.setStyleSheet("""
+                QComboBox {
+                    background: rgba(30, 30, 30, 150);
+                    color: #00FF88;
+                    border: 1px solid rgba(255, 255, 255, 30);
+                    border-radius: 4px;
+                    padding-left: 5px;
+                    font-family: Consolas;
+                }
+                QComboBox QAbstractItemView {
+                    background: rgb(20, 20, 20);
+                    color: white;
+                    selection-background-color: rgba(0, 120, 255, 200);
+                }
+            """)
+            # Explicitly tie dropdown updates to the duration layout engine
+            combo.currentIndexChanged.connect(lambda idx, r=row_index, path=f: self.update_row_duration(r, path, idx))
+            self.queue.setCellWidget(row_index, 2, combo)
+            
+            # Set initial duration string parsing using the detected file layout index
+            duration_str = get_raw_duration(f, default_index)
             duration_item = QTableWidgetItem(duration_str)
             duration_item.setTextAlignment(Qt.AlignCenter)
-            self.queue.setItem(row_index, 2, duration_item)
+            self.queue.setItem(row_index, 3, duration_item)
             
         self.queue.blockSignals(False)
 
@@ -431,38 +460,63 @@ class MainWindow(QMainWindow):
         if not self.files:
             return
 
-        checked_indices = []
+        # Safely scrape values on the main GUI thread before dispatching worker threads
+        selected_targets = []
         for i in range(self.queue.rowCount()):
             item = self.queue.item(i, 0)
             if item and item.checkState() == Qt.Checked:
-                checked_indices.append(i)
+                combo = self.queue.cellWidget(i, 2)
+                bit_depth = 16 if combo.currentIndex() == 0 else 24
+                selected_targets.append((self.files[i], bit_depth))
 
-        if not checked_indices:
+        if not selected_targets:
             return
 
-        def worker():
-            total = len(checked_indices)
-            self.progress.setMaximum(total)
+        use_custom = self.use_custom
+        output_folder = self.output_folder
+
+        def worker(targets, custom_mode, custom_path):
+            total = len(targets)
+            self.bridge.max_progress.emit(total)
+            self.bridge.progress.emit(0)
             self.bridge.log.emit("---- CONVERSION START ----")
 
-            for progress_index, file_index in enumerate(checked_indices):
-                f = self.files[file_index]
+            for progress_index, (f, bit_depth) in enumerate(targets):
                 try:
-                    out = self.output_folder if self.use_custom else os.path.dirname(f)
+                    out = custom_path if custom_mode else os.path.dirname(f)
                     wav = os.path.join(
                         out, os.path.splitext(os.path.basename(f))[0] + ".wav"
                     )
 
-                    self.bridge.log.emit(f"[INPUT]  {os.path.abspath(f)}")
+                    self.bridge.log.emit(f"[INPUT]  {os.path.abspath(f)} ({bit_depth}-bit)")
 
                     with open(f, "rb") as r:
-                        data = r.read()
+                        raw_bytes = r.read()
+
+                    processed_frames = bytearray()
+                    sampwidth = 2
+                    
+                    if bit_depth == 16:
+                        sampwidth = 2
+                        processed_frames = raw_bytes
+                        
+                    elif bit_depth == 24:
+                        sampwidth = 3
+                        remainder = len(raw_bytes) % 3
+                        if remainder != 0:
+                            raw_bytes = raw_bytes[:-remainder]
+
+                        num_samples = len(raw_bytes) // 3
+                        for i in range(num_samples):
+                            chunk = raw_bytes[i*3 : (i+1)*3]
+                            val = int.from_bytes(chunk, byteorder='little', signed=True)
+                            processed_frames.extend(val.to_bytes(3, byteorder='little', signed=True))
 
                     with wave.open(wav, "wb") as w:
                         w.setnchannels(1)
-                        w.setsampwidth(2)
+                        w.setsampwidth(sampwidth)
                         w.setframerate(44100)
-                        w.writeframes(data)
+                        w.writeframes(processed_frames)
 
                     self.bridge.log.emit(f"[OUTPUT] {os.path.abspath(wav)}")
 
@@ -470,12 +524,16 @@ class MainWindow(QMainWindow):
                     self.bridge.log.emit(f"[ERROR] {e}")
 
                 self.bridge.progress.emit(progress_index + 1)
-                self.bridge.status.emit(f"{progress_index+1}/{total}")
+                self.bridge.status.emit(f"{progress_index + 1}/{total}")
 
             self.bridge.log.emit("---- CONVERSION COMPLETE ----")
             self.bridge.status.emit("Done")
 
-        threading.Thread(target=worker, daemon=True).start()
+        threading.Thread(
+            target=worker, 
+            args=(selected_targets, use_custom, output_folder), 
+            daemon=True
+        ).start()
 
 
 if __name__ == "__main__":
